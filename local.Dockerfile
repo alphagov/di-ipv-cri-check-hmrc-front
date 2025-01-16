@@ -10,6 +10,9 @@ RUN npm ci
 COPY . ./
 RUN npm run build
 
+HEALTHCHECK --interval=10s --timeout=2s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:$PORT/healthcheck || exit 1
+
 CMD npm run dev
 
 EXPOSE $PORT

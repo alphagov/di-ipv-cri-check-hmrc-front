@@ -1,18 +1,19 @@
-FROM --platform="linux/arm64" arm64v8/node@sha256:56e8282f4392fb96c877babc93b3829e46b79c6fbcd48c92de578febffc80587 AS builder
+ARG NODE_SHA=sha256:56e8282f4392fb96c877babc93b3829e46b79c6fbcd48c92de578febffc80587
+ARG TARGET_PLATFORM=linux/arm64
+
+FROM --platform=${TARGET_PLATFORM} arm64v8/node@${NODE_SHA} AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
-
 COPY /src ./src
-RUN npm run build
 
-RUN npm prune
+RUN npm ci && npm run build && npm prune
 
-FROM --platform="linux/arm64" arm64v8/node@sha256:56e8282f4392fb96c877babc93b3829e46b79c6fbcd48c92de578febffc80587 AS final
+FROM --platform=${TARGET_PLATFORM} arm64v8/node@${NODE_SHA} AS final
 
-RUN ["apt-get", "update"]
-RUN ["apt-get", "install", "-y", "tini"]
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl tini \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -25,10 +26,13 @@ COPY --from=builder /app/src ./src
 
 # Add in dynatrace layer
 COPY --from=khw46367.live.dynatrace.com/linux/oneagent-codemodules-musl:nodejs / /
-ENV LD_PRELOAD /opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+ENV LD_PRELOAD=/opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
 
-ENV PORT 8080
+ENV PORT=8080
 EXPOSE $PORT
+
+HEALTHCHECK --interval=10s --timeout=2s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:$PORT/healthcheck || exit 1
 
 ENTRYPOINT ["tini", "--"]
 
