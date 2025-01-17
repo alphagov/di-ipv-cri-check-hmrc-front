@@ -720,8 +720,6 @@ Resources:
       WebACLArn: !ImportValue cfront-origin-distrib-CloakingOriginWebACLArn
 
   # ECS Autoscaling
-  # The number of pods will increase when the configured CPU utilization is breached for more than 3 minutes.
-  # Scaling down will occur after 15 minutes of 90% utilization of the configured CPU utilization.
 
   ECSAutoScalingTarget:
     Condition: IsProductionOrBuild
@@ -754,17 +752,13 @@ Resources:
       ServiceNamespace: ecs
       StepScalingPolicyConfiguration:
         AdjustmentType: PercentChangeInCapacity
-        Cooldown: 60
-        MinAdjustmentMagnitude: 2
+        Cooldown: 300
         StepAdjustments:
-          - MetricIntervalLowerBound: -10
-            MetricIntervalUpperBound: 0
-            ScalingAdjustment: -20
-          - MetricIntervalLowerBound: -20
-            MetricIntervalUpperBound: -10
-            ScalingAdjustment: -40
           - MetricIntervalUpperBound: -20
-            ScalingAdjustment: -60
+            MetricIntervalLowerBound: -40
+            ScalingAdjustment: -10
+          - MetricIntervalUpperBound: -40
+            ScalingAdjustment: -50
 
   StepScaleOutPolicy:
     Condition: IsProductionOrBuild
@@ -781,26 +775,20 @@ Resources:
       ScalableDimension: ecs:service:DesiredCount
       ServiceNamespace: ecs
       StepScalingPolicyConfiguration:
-        AdjustmentType: ExactCapacity
+        AdjustmentType: PercentChangeInCapacity
         Cooldown: 60
+        MinAdjustmentMagnitude: 5
         StepAdjustments:
-          - MetricIntervalLowerBound: 0
-            MetricIntervalUpperBound: 10
-            ScalingAdjustment: 10
-          - MetricIntervalLowerBound: 10
-            MetricIntervalUpperBound: 20
-            ScalingAdjustment: 20
+          - MetricIntervalUpperBound: 20
+            ScalingAdjustment: 100
           - MetricIntervalLowerBound: 20
             MetricIntervalUpperBound: 30
-            ScalingAdjustment: 30
+            ScalingAdjustment: 200
           - MetricIntervalLowerBound: 30
-            MetricIntervalUpperBound: 40
-            ScalingAdjustment: 40
-          - MetricIntervalLowerBound: 40
-            MetricIntervalUpperBound: 50
-            ScalingAdjustment: 50
-          - MetricIntervalLowerBound: 50
-            ScalingAdjustment: 60
+            MetricIntervalUpperBound: 35
+            ScalingAdjustment: 300
+          - MetricIntervalLowerBound: 35
+            ScalingAdjustment: 500
 
   StepScaleOutAlarm:
     Condition: IsProductionOrBuild
@@ -810,7 +798,7 @@ Resources:
       ActionsEnabled: true
       AlarmActions:
         - !Ref StepScaleOutPolicy
-      AlarmDescription: !Sub "FrontClusterOver40PercentCPU. ${SupportManualURL}"
+      AlarmDescription: !Sub "FrontClusterOver60PercentCPU"
       ComparisonOperator: "GreaterThanThreshold"
       DatapointsToAlarm: "2"
       Dimensions:
@@ -824,7 +812,7 @@ Resources:
       Namespace: "AWS/ECS"
       Statistic: "Average"
       Period: "60"
-      Threshold: "40"
+      Threshold: "60"
 
   StepScaleInAlarm:
     Condition: IsProductionOrBuild
@@ -834,7 +822,7 @@ Resources:
       ActionsEnabled: true
       AlarmActions:
         - !Ref StepScaleInPolicy
-      AlarmDescription: !Sub "FrontClusterUnder30PercentCPU. ${SupportManualURL}"
+      AlarmDescription: !Sub "FrontClusterUnder60PercentCPU"
       ComparisonOperator: "LessThanThreshold"
       DatapointsToAlarm: "5"
       Dimensions:
@@ -848,7 +836,7 @@ Resources:
       Namespace: "AWS/ECS"
       Statistic: "Average"
       Period: "60"
-      Threshold: "30"
+      Threshold: "60"
 
   SessionsTable:
     Type: AWS::DynamoDB::Table
